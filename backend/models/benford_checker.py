@@ -2,31 +2,22 @@ import numpy as np
 
 def extract_leading_digits(logits):
     digits = []
-    flat = logits.flatten()
-    for val in flat:
+    for val in logits.flatten():
         if val <= 0:
             continue
-        str_val = str(val)
-        first_digit = next((char for char in str_val if char.isdigit() and char != "0"), None)
+        first_digit = next((c for c in str(val) if c.isdigit() and c != "0"), None)
         if first_digit:
             digits.append(int(first_digit))
     return digits
 
 
-def follows_benford_law(logits, threshold=0.1):
+def follows_benford_law(logits, threshold: float = 0.1) -> bool:
     digits = extract_leading_digits(logits)
     if not digits:
-        return True  # fallback: treat as non-adversarial
+        return True  # if we can't measure, assume OK
 
-    actual_dist = np.array([digits.count(d)/len(digits) for d in range(1, 10)])
-    expected_dist = np.log10(1 + 1 / np.arange(1, 10))
+    actual = np.array([digits.count(d) / len(digits) for d in range(1, 10)])
+    expected = np.log10(1 + 1 / np.arange(1, 10))
 
-    deviation = np.sum(np.abs(actual_dist - expected_dist))
-    return deviation < threshold
-
-
-    actual_dist = np.array([digits.count(d)/len(digits) for d in range(1, 10)])
-    expected_dist = np.log10(1 + 1/np.arange(1, 10))
-
-    deviation = np.sum(np.abs(actual_dist - expected_dist))
+    deviation = np.sum(np.abs(actual - expected))
     return deviation < threshold

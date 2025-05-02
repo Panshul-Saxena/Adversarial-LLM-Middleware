@@ -1,34 +1,35 @@
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware  # ✅ import CORS middleware
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional
+
 from models.llm_handler import generate_with_llm
 from models.benford_checker import follows_benford_law
 from models.detect_model import is_adversarial
 from models.correct_model import correct_prompt
-from typing import Optional
 
 app = FastAPI()
 
-# ✅ Allow CORS from React frontend (adjust as needed)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # or ["*"] during development
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Request schema
+# ── Schemas ────────────────────────────────────────────────────────────────────
 class GenerateRequest(BaseModel):
     prompt: str
     middleware: bool = False
 
-# Response schema
+
 class GenerateResponse(BaseModel):
     original_prompt: str
     corrected_prompt: Optional[str]
     response: str
     adversarial_detected: bool
+
 
 @app.post("/generate", response_model=GenerateResponse)
 async def generate_text(req: GenerateRequest):
@@ -41,17 +42,7 @@ async def generate_text(req: GenerateRequest):
             original_prompt=prompt,
             corrected_prompt=None,
             response=response,
-            adversarial_detected=False
-        )
-
-    response, logits = generate_with_llm(prompt, return_logits=True)
-
-    if follows_benford_law(logits):
-        return GenerateResponse(
-            original_prompt=prompt,
-            corrected_prompt=None,
-            response=response,
-            adversarial_detected=False
+            adversarial_detected=False,
         )
 
     if is_adversarial(prompt):
@@ -61,12 +52,22 @@ async def generate_text(req: GenerateRequest):
             original_prompt=prompt,
             corrected_prompt=corrected,
             response=corrected_response,
-            adversarial_detected=True
+            adversarial_detected=True,
+        )
+
+    response, logits = generate_with_llm(prompt, return_logits=True)
+
+    if not follows_benford_law(logits):
+        return GenerateResponse(
+            original_prompt=prompt,
+            corrected_prompt=None,
+            response="⚠️ Potential hallucination detected in model output.",
+            adversarial_detected=True,
         )
 
     return GenerateResponse(
         original_prompt=prompt,
         corrected_prompt=None,
-        response="⚠️ Adversarial input detected, but could not correct.",
-        adversarial_detected=True
+        response=response,
+        adversarial_detected=False,
     )

@@ -1,18 +1,42 @@
 import re
 
-# Very basic rule-based correction
+CHAR_MAP = str.maketrans({
+    "@": "a",
+    "0": "o",
+    "$": "s",
+})
+
+WORD_REPLACEMENTS = {
+    "Frànce": "France",
+    "primè": "prime",
+    "ministèr": "minister",
+    "Bṛitain": "Britain",
+    "capitl": "capital",
+    "citty": "city",
+    "poplution": "population",
+    "defintion": "definition",
+    "headqu@rters": "headquarters",
+    "frst": "first",
+    "presidnt": "president",
+    "electi0n": "election",
+    "naem": "name",
+    "currncy": "currency",
+    "Googlé": "Google",
+    "Jàpan": "Japan",
+    "It@ly": "Italy",
+    "Germ@ny": "Germany",
+    "Br@zil": "Brazil",
+    "Wh@t": "What",
+    "NOT": "",          # strip simple negation
+}
+
 def correct_prompt(prompt: str) -> str:
-    replacements = {
-        "Frànce": "France",
-        "capitl": "capital",
-        "@": "a",
-        "hed": "head",
-        "citty": "city",
-        "NOT": "",  # Remove negation (can be more sophisticated)
-    }
+    # char-level replace
+    prompt = prompt.translate(CHAR_MAP)
 
-    corrected = prompt
-    for wrong, right in replacements.items():
-        corrected = re.sub(rf"\b{re.escape(wrong)}\b", right, corrected, flags=re.IGNORECASE)
+    # word-level replace (regex word boundaries)
+    for wrong, right in WORD_REPLACEMENTS.items():
+        pattern = rf"\b{re.escape(wrong)}\b"
+        prompt = re.sub(pattern, right, prompt, flags=re.IGNORECASE)
 
-    return corrected.strip()
+    return prompt.strip()

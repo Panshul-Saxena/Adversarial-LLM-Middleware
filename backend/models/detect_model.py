@@ -1,17 +1,28 @@
 import re
 
-# Stub detection logic
-def is_adversarial(prompt: str) -> bool:
-    # Check for homoglyphs, common misspellings or negation
-    homoglyphs = ["à", "è", "ì", "ò", "ù"]
-    misspellings = ["capitl", "hed", "citty"]
-    suspicious_words = ["NOT", "never", "isn't"]
+ACCENTS = "àèìòùÀÈÌÒÙ"
 
-    if any(char in prompt for char in homoglyphs):
+LEETSYMBOLS = r"[@$€0-9]"
+
+MISSPELLS = {
+    "capitl", "citty", "poplution", "defintion",
+    "frst", "presidnt", "currncy"
+}
+
+NEGATIONS = {"NOT", "never", "isn't"}
+
+def is_adversarial(prompt: str) -> bool:
+    if any(ch in prompt for ch in ACCENTS):
         return True
-    if any(word in prompt.lower() for word in misspellings):
+
+    if re.search(LEETSYMBOLS, prompt):
         return True
-    if any(word in prompt for word in suspicious_words):
+
+    plower = prompt.lower()
+    if any(w in plower for w in MISSPELLS):
+        return True
+
+    if any(n in prompt for n in NEGATIONS):
         return True
 
     return False
