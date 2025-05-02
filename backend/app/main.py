@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware  # ✅ import CORS middleware
 from pydantic import BaseModel
 from models.llm_handler import generate_with_llm
 from models.benford_checker import follows_benford_law
@@ -6,13 +7,21 @@ from models.detect_model import is_adversarial
 from models.correct_model import correct_prompt
 from typing import Optional
 
-
 app = FastAPI()
+
+# ✅ Allow CORS from React frontend (adjust as needed)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # or ["*"] during development
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Request schema
 class GenerateRequest(BaseModel):
     prompt: str
-    middleware: bool = False  # default to off
+    middleware: bool = False
 
 # Response schema
 class GenerateResponse(BaseModel):
@@ -27,7 +36,6 @@ async def generate_text(req: GenerateRequest):
     use_middleware = req.middleware
 
     if not use_middleware:
-        # Direct LLM response (no detection or correction)
         response, _ = generate_with_llm(prompt, return_logits=False)
         return GenerateResponse(
             original_prompt=prompt,
@@ -36,10 +44,8 @@ async def generate_text(req: GenerateRequest):
             adversarial_detected=False
         )
 
-    # Step 1: Generate with LLM + logits
     response, logits = generate_with_llm(prompt, return_logits=True)
 
-    # Step 2: Check Benford's Law
     if follows_benford_law(logits):
         return GenerateResponse(
             original_prompt=prompt,
@@ -48,7 +54,6 @@ async def generate_text(req: GenerateRequest):
             adversarial_detected=False
         )
 
-    # Step 3: Adversarial Detection
     if is_adversarial(prompt):
         corrected = correct_prompt(prompt)
         corrected_response, _ = generate_with_llm(corrected, return_logits=False)
@@ -58,8 +63,7 @@ async def generate_text(req: GenerateRequest):
             response=corrected_response,
             adversarial_detected=True
         )
-    
-    # Fallback: Adversarial input, but couldn't fix
+
     return GenerateResponse(
         original_prompt=prompt,
         corrected_prompt=None,
